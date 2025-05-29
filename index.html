@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI Shopping Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Custom styles for the chat interface */
+    body {
+      font-family: 'Inter', sans-serif; /* Using Inter font as per instructions */
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center; /* Center vertically */
+      padding: 20px;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .chat-container {
+      width: 100%;
+      max-width: 800px;
+      background: white;
+      padding: 32px;
+      border-radius: 20px; /* Rounded corners */
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+      display: flex;
+      flex-direction: column;
+      min-height: 700px; /* Ensure enough height for chat */
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 24px;
+      color: #1e293b;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .status-bar {
+      background: #f1f5f9;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      color: #64748b;
+      text-align: center;
+    }
+    .scanning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    .ready {
+      background: #d1fae5;
+      color: #059669;
+    }
+    .error {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    #chatBox {
+      flex-grow: 1; /* Allow chatbox to take available space */
+      overflow-y: auto;
+      border: 1px solid #e2e8f0;
+      background: #fafbfc;
+      border-radius: 12px;
+      padding: 20px;
+      font-size: 15px;
+      margin-bottom: 20px;
+      line-height: 1.5;
+      display: flex; /* Use flexbox for messages */
+      flex-direction: column; /* Stack messages vertically */
+    }
+    .msg {
+      margin-bottom: 16px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      max-width: 85%;
+    }
+    .user {
+      background: #dbeafe;
+      color: #1e40af;
+      margin-left: auto; /* Align user messages to the right */
+      text-align: right;
+    }
+    .bot {
+      background: #ecfdf5;
+      color: #047857;
+      margin-right: auto; /* Align bot messages to the left */
+      text-align: left;
+    }
+    /* Product card styles for horizontal display */
+    .product-carousel {
+        display: flex;
+        overflow-x: auto; /* Enable horizontal scrolling */
+        gap: 16px; /* Space between cards */
+        padding-bottom: 10px; /* Space for scrollbar */
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        scrollbar-width: thin; /* Firefox */
+        scrollbar-color: #cbd5e1 #f1f5f9; /* Firefox */
+    }
+    .product-carousel::-webkit-scrollbar {
+        height: 8px;
+    }
+    .product-carousel::-webkit-scrollbar-thumb {
+        background-color: #cbd5e1;
+        border-radius: 10px;
+    }
+    .product-carousel::-webkit-scrollbar-track {
+        background-color: #f1f5f9;
+        border-radius: 10px;
+    }
+
+    .product-card-horizontal {
+        flex: 0 0 200px; /* Fixed width, no shrinking, no growing */
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        text-align: center;
+        text-decoration: none; /* Remove underline from link */
+        color: inherit; /* Inherit text color */
+        transition: transform 0.2s ease-in-out;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between; /* Push name to top, price to bottom */
+    }
+    .product-card-horizontal:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .product-card-horizontal img {
+        width: 100%;
+        height: 120px;
+        object-fit: contain; /* Ensure image fits without cropping */
+        border-radius: 4px;
+        margin-bottom: 8px;
+    }
+    .product-card-horizontal .product-name {
+        font-weight: bold;
+        font-size: 14px;
+        color: #111827;
+        margin-bottom: 4px;
+        flex-grow: 1; /* Allows name to take up space */
+        display: -webkit-box;
+        -webkit-line-clamp: 2; /* Limit to 2 lines */
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .product-card-horizontal .product-price {
+        font-weight: bold;
+        font-size: 16px;
+        color: #dc2626;
+        margin-top: auto; /* Push price to bottom */
+    }
+    .product-card-horizontal .retailer-name {
+        font-size: 11px;
+        color: #6b7280;
+        margin-top: 4px;
+    }
+
+    /* Original full product card styles (if still used - largely replaced by horizontal) */
+    .product-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 12px 0;
+      font-size: 14px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .product-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 8px;
+    }
+    .product-name {
+      font-weight: bold;
+      color: #111827;
+      font-size: 16px;
+      flex: 1;
+    }
+    .sku-badge {
+      background: #3b82f6;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      margin-left: 8px;
+    }
+    .product-price {
+      color: #dc2626;
+      font-weight: bold;
+      font-size: 18px;
+      margin: 8px 0;
+    }
+    .product-details {
+      color: #374151;
+      margin: 8px 0;
+      line-height: 1.4;
+    }
+    .product-features {
+      color: #6b7280;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+    .retailer-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px solid #e5e7eb;
+    }
+    .retailer-name {
+      font-weight: 600;
+      color: #3b82f6;
+    }
+    .stock-status-container {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #6b7280;
+    }
+    .stock-status-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 2px 0;
+    }
+    .stock-status-badge {
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .in-stock {
+      background: #d1fae5;
+      color: #059669;
+    }
+    .limited-stock {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    .out-of-stock {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    input[type="text"] {
+      width: calc(100% - 28px);
+      padding: 16px 14px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 16px;
+      margin-bottom: 12px;
+    }
+    button {
+      width: 100%;
+      padding: 16px;
+      font-size: 16px;
+      font-weight: bold;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform 0.2s;
+      margin: 4px 0;
+    }
+    button:hover {
+      transform: translateY(-2px);
+    }
+    .btn-secondary {
+      background: linear-gradient(135deg, #64748b, #475569);
+    }
+    .loading {
+      text-align: center;
+      color: #6b7280;
+      font-style: italic;
+    }
+    /* Hide the debug section by default, can be toggled for development */
+    .debug-section {
+      display: none; /* Hide debug section by default */
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 12px 0;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .debug-title {
+      font-weight: bold;
+      color: #374151;
+      margin-bottom: 8px;
+    }
+    .debug-content {
+      font-family: monospace;
+      font-size: 12px;
+      color: #6b7280;
+      white-space: pre-wrap;
+    }
+    /* Specific styles for the technology overview */
+    .tech-overview {
+        background: #e0f2f7; /* Light blue background */
+        border-left: 5px solid #00bcd4; /* Cyan border */
+        padding: 15px 20px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        color: #006064; /* Darker blue text */
+        font-size: 14px;
+    }
+    .tech-overview h4 {
+        font-weight: bold;
+        color: #00796b; /* Teal heading */
+        margin-bottom: 8px;
+        font-size: 16px;
+    }
+    .tech-overview a {
+        color: #00796b; /* Teal link color */
+        text-decoration: underline;
+    }
+    .tech-overview a:hover {
+        color: #004d40; /* Darker teal on hover */
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <h2>🛍️ AI Shopping Assistant</h2>
+
+    <div class="status-bar ready" id="statusBar">
+      🙋‍♂️ Ready to search pre-loaded product data
+    </div>
+
+    <div id="chatBox">
+      <div class="msg bot">
+        <div>Hi! I can help you find products using a pre-loaded dataset. Try these example queries to get started:</div>
+        <div style="margin-top: 12px; font-size: 13px; color: #6b7280;">
+          <ul>
+            <li>"Show me 75 inch OLED TVs"</li>
+            <li>"refrigerators under $1500"</li>
+            <li>"LG 65 inch TV"</li>
+            <li>"Bosch refrigerator"</li>
+            <li>"books"</li>
+            <li>"Tipping the Velvet"</li>
+          </ul>
+          <br>
+          I'll search this pre-loaded data for matching products and provide details, pricing, and stock information.
+        </div>
+      </div>
+    </div>
+
+    <input type="text" id="userInput" placeholder="Ask me about products, brands, or sizes..." />
+    <button onclick="getResponse()">Ask the Assistant</button>
+  </div>
+
+  <script>
+    let productDatabase = {}; // Stores detailed product information, indexed by SKU
+
+    // Define mock product data for categories that might not appear in a generic book scraping
+    // This data is now the SOLE source of truth for this standalone prototype.
+    const mockProductData = {
+      'SAMS75QLED': {
+        sku: 'SAMS75QLED',
+        name: 'Samsung 75" Neo QLED 4K Smart TV QN75QN85C',
+        brand: 'Samsung',
+        category: 'TV',
+        screenSize: '75 inch',
+        displayType: 'QLED',
+        price: '$2,195.00',
+        numericPrice: 2195.00,
+        imageUrl: 'https://images.samsung.com/is/image/samsung/assets/au/tvs/QLED_TVs/QN75QN85C_front.jpg',
+        originalPrice: '$2,495.00',
+        discount: '12%',
+        description: '75-inch Neo QLED 4K Smart TV with Quantum HDR 32X technology, Neural Quantum Processor 4K, and Object Tracking Sound+.',
+        specifications: {
+          'Screen Size': '75 inches',
+          'Resolution': '4K Ultra HD (3840 x 2160)',
+          'HDR': 'Quantum HDR 32X',
+          'Smart Platform': 'Tizen OS',
+          'Connectivity': 'Wi-Fi, Bluetooth, 4x HDMI, 2x USB'
+        },
+        features: ['Quantum Dot Technology', 'Object Tracking Sound+', 'Gaming Hub', 'Multi View'],
+        retailer: 'Harvey Norman',
+        branchStock: [
+          { branch: 'Sydney CBD', stock: 'in-stock' },
+          { branch: 'Parramatta', stock: 'limited-stock' },
+          { branch: 'Online Warehouse', stock: 'in-stock' }
+        ],
+        rating: 4.6,
+        reviews: 128,
+        warranty: '2 years manufacturer warranty',
+        deliveryInfo: 'Free delivery available',
+        productPageUrl: 'https://www.harveynorman.com.au/samsung-qn75qn85c-75-inch-neo-qled-4k-smart-tv.html'
+      },
+      'LG65OLED': {
+        sku: 'LG65OLED',
+        name: 'LG 65" OLED evo C3 4K Smart TV',
+        brand: 'LG',
+        category: 'TV',
+        screenSize: '65 inch',
+        displayType: 'OLED',
+        price: '$1,899.00',
+        numericPrice: 1899.00,
+        imageUrl: 'https://www.lg.com/au/images/tvs/md07541604/gallery/D-01.jpg',
+        originalPrice: '$2,299.00',
+        discount: '17%',
+        description: '65-inch LG OLED evo C3 with α9 AI Processor Gen6, Brightness Booster, and webOS 23 Smart TV.',
+        specifications: {
+          'Screen Size': '65 inches',
+          'Resolution': '4K Ultra HD (3840 x 2160)',
+          'HDR': 'Dolby Vision IQ, HDR10 Pro',
+          'Smart Platform': 'webOS 23',
+          'Connectivity': 'Wi-Fi, Bluetooth, 4x HDMI 2.1, 3x USB'
+        },
+        features: ['OLED evo Panel', 'G-Sync Compatible', 'Dolby Atmos', 'ThinQ AI'],
+        retailer: 'JB Hi-Fi',
+        branchStock: [
+          { branch: 'Melbourne Central', stock: 'limited-stock' },
+          { branch: 'Chadstone', stock: 'out-of-stock' },
+          { branch: 'Online Warehouse', stock: 'in-stock' }
+        ],
+        rating: 4.8,
+        reviews: 210,
+        warranty: '1 year manufacturer warranty',
+        deliveryInfo: 'Standard delivery fees apply',
+        productPageUrl: 'https://www.jbhifi.com.au/lg-65-inch-oled-evo-c3-4k-smart-tv.html'
+      },
+      'BOSCH500L': {
+        sku: 'BOSCH500L',
+        name: 'Bosch 500L Bottom Mount Refrigerator',
+        brand: 'Bosch',
+        category: 'Refrigerator',
+        doorType: 'Bottom Mount',
+        capacity: '500L',
+        price: '$1,299.00',
+        numericPrice: 1299.00,
+        imageUrl: 'https://assets.bosch-home.com/MCDP03741879/MCZ_FRIDGE_FREEZER_OVERVIEW_2019_MC_AU_00_L_Bosch.jpg',
+        originalPrice: '$1,499.00',
+        discount: '13%',
+        description: 'Spacious 500L bottom mount refrigerator with VitaFresh Plus for longer food freshness and NoFrost technology.',
+        specifications: {
+          'Capacity': '500 Litres',
+          'Dimensions (HxWxD)': '1700 x 700 x 700 mm',
+          'Energy Rating': '4.5 Stars',
+          'Features': 'VitaFresh Plus, NoFrost, LED lighting'
+        },
+        features: ['VitaFresh Plus', 'NoFrost', 'MultiAirflow System'],
+        retailer: 'The Good Guys',
+        branchStock: [
+          { branch: 'Brisbane City', stock: 'in-stock' },
+          { branch: 'Chermside', stock: 'in-stock' },
+          { branch: 'Online Warehouse', stock: 'limited-stock' }
+        ],
+        rating: 4.5,
+        reviews: 85,
+        warranty: '2 years manufacturer warranty',
+        deliveryInfo: 'Click & Collect available',
+        productPageUrl: 'https://www.thegoodguys.com.au/bosch-500l-bottom-mount-refrigerator.html'
+      },
+      'SONY75LED': {
+        sku: 'SONY75LED',
+        name: 'Sony 75" BRAVIA XR X90L 4K Full Array LED TV',
+        brand: 'Sony',
+        category: 'TV',
+        screenSize: '75 inch',
+        displayType: 'LED',
+        price: '$2,495.00',
+        numericPrice: 2495.00,
+        imageUrl: 'https://assets.sony.com/is/image/gwtc/ilce7m4-body-only-hero-2.jpg',
+        description: 'Immersive 75-inch 4K Full Array LED TV with Cognitive Processor XR and XR Triluminos Pro for vivid colors.',
+        retailer: 'Harvey Norman',
+        branchStock: [
+          { branch: 'Sydney CBD', stock: 'in-stock' },
+          { branch: 'Online Warehouse', stock: 'in-stock' }
+        ],
+        rating: 4.7,
+        reviews: 90,
+        warranty: '2 years manufacturer warranty',
+        productPageUrl: 'https://www.harveynorman.com.au/sony-75-inch-bravia-xr-x90l-4k-full-array-led-tv.html'
+      },
+      'SAMS55QLED': {
+        sku: 'SAMS55QLED',
+        name: 'Samsung 55" QN85C Neo QLED 4K Smart TV',
+        brand: 'Samsung',
+        category: 'TV',
+        screenSize: '55 inch',
+        displayType: 'QLED',
+        price: '$1,599.00',
+        numericPrice: 1599.00,
+        imageUrl: 'https://images.samsung.com/is/image/samsung/assets/au/tvs/QLED_TVs/QN75QN85C_front.jpg',
+        description: 'Vibrant 55-inch Neo QLED 4K Smart TV with Quantum HDR and Object Tracking Sound Lite.',
+        retailer: 'JB Hi-Fi',
+        branchStock: [
+          { branch: 'Melbourne Central', stock: 'in-stock' },
+          { branch: 'Chadstone', stock: 'limited-stock' }
+        ],
+        rating: 4.5,
+        reviews: 150,
+        warranty: '1 year manufacturer warranty',
+        productPageUrl: 'https://www.jbhifi.com.au/samsung-55-inch-qn85c-neo-qled-4k-smart-tv.html'
+      },
+      // NEW PRODUCT ADDED: 75 inch OLED TV
+      'LG75OLED': {
+        sku: 'LG75OLED',
+        name: 'LG 75" OLED evo G3 4K Smart TV',
+        brand: 'LG',
+        category: 'TV',
+        screenSize: '75 inch',
+        displayType: 'OLED',
+        price: '$3,999.00',
+        numericPrice: 3999.00,
+        imageUrl: 'https://www.lg.com/us/images/tvs/md07541604/gallery/D-01.jpg',
+        originalPrice: '$4,499.00',
+        discount: '11%',
+        description: '75-inch LG OLED evo G3 with Brightness Booster Max, α9 AI Processor Gen6, and ultra-slim design.',
+        specifications: {
+          'Screen Size': '75 inches',
+          'Resolution': '4K Ultra HD (3840 x 2160)',
+          'HDR': 'Dolby Vision IQ, HDR10 Pro',
+          'Smart Platform': 'webOS 23',
+          'Connectivity': 'Wi-Fi, Bluetooth, 4x HDMI 2.1, 3x USB'
+        },
+        features: ['OLED evo Panel', 'Brightness Booster Max', 'G-Sync Compatible', 'Dolby Atmos'],
+        retailer: 'Best Buy',
+        branchStock: [
+          { branch: 'Online Warehouse', stock: 'in-stock' }
+        ],
+        rating: 4.9,
+        reviews: 300,
+        warranty: '2 years manufacturer warranty',
+        deliveryInfo: 'Free delivery available',
+        productPageUrl: 'https://www.bestbuy.com/site/lg-75-class-g3-series-oled-4k-uhd-smart-webos-tv/6535970.p?skuId=6535970'
+      },
+      'BOOK_VELVET': { // Example book from books.toscrape.com
+        sku: 'BOOK_VELVET',
+        name: 'Tipping the Velvet',
+        category: 'Book',
+        price: '£53.74',
+        numericPrice: 53.74,
+        imageUrl: 'http://books.toscrape.com/media/cache/26/0c/260c6ae16bce3437d3fbb250ae05ab2f.jpg',
+        retailer: 'Books to Scrape',
+        productPageUrl: 'http://books.toscrape.com/catalogue/tipping-the-velvet_999/index.html',
+        description: 'A captivating historical novel.'
+      },
+      'BOOK_ATTIC': { // Another example book
+        sku: 'BOOK_ATTIC',
+        name: 'A Light in the Attic',
+        category: 'Book',
+        price: '£51.77',
+        numericPrice: 51.77,
+        imageUrl: 'http://books.toscrape.com/media/cache/2c/da/2cdad67c44b002ae79dbda28d3ee2f55.jpg',
+        retailer: 'Books to Scrape',
+        productPageUrl: 'http://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html',
+        description: 'A collection of poems and drawings.'
+      }
+    };
+
+
+    // Global utility functions for the chat interface
+    function addMessage(message, sender, isHTML = false) {
+      const chatBox = document.getElementById("chatBox");
+      const div = document.createElement("div");
+      div.className = `msg ${sender}`;
+
+      // Changed bot icon from 🤖 to 🙋‍♂️
+      if (isHTML) {
+        div.innerHTML = (sender === "user" ? "🧍 " : "🙋‍♂️ ") + message;
+      } else {
+        div.textContent = (sender === "user" ? "🧍 " : "🙋‍♂️ ") + message;
+      }
+
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight; // Scroll to the bottom
+    }
+
+    function updateStatus(message, type = 'ready') {
+      const statusBar = document.getElementById('statusBar');
+      statusBar.textContent = message;
+      statusBar.className = `status-bar ${type}`;
+    }
+
+    /**
+     * Creates an HTML product card for displaying product details (full version).
+     * This function is largely for internal use or if you revert to single product displays.
+     * @param {object} product - The product object containing details.
+     * @returns {string} HTML string of the product card.
+     */
+    function createProductCard(product) {
+      let specificationsHTML = '';
+      if (product.specifications) {
+        specificationsHTML = '<div class="product-details"><strong>Specifications:</strong><br>';
+        for (const [key, value] of Object.entries(product.specifications)) {
+          specificationsHTML += `• ${key}: ${value}<br>`;
+        }
+        specificationsHTML += '</div>';
+      }
+
+      let branchStockHTML = '';
+      if (product.branchStock && product.branchStock.length > 0) {
+        branchStockHTML = '<div class="stock-status-container"><strong>Stock Availability:</strong><br>';
+        product.branchStock.forEach(item => {
+          const stockClass = item.stock === 'in-stock' ? 'in-stock' :
+                               item.stock === 'limited-stock' ? 'limited-stock' : 'out-of-stock';
+          branchStockHTML += `
+            <div class="stock-status-item">
+              <span>${item.branch}:</span>
+              <span class="stock-status-badge ${stockClass}">${item.stock.replace('-', ' ')}</span>
+            </div>
+          `;
+        });
+        branchStockHTML += '</div>';
+      } else {
+        // Fallback if no specific branch stock is provided (e.g., for dynamically generated products)
+        const overallStock = product.stockStatus || 'unknown';
+        const stockClass = overallStock === 'in-stock' ? 'in-stock' :
+                             overallStock === 'limited-stock' ? 'limited-stock' : 'out-of-stock';
+        branchStockHTML = `
+            <div class="stock-status-container">
+              <strong>Overall Stock:</strong>
+              <span class="stock-status-badge ${stockClass}">${overallStock.replace('-', ' ')}</span>
+            </div>
+          `;
+      }
+
+      return `
+          <div class="product-card">
+            <div class="product-header">
+              <div class="product-name">${product.name}</div>
+              <div class="sku-badge">SKU: ${product.sku}</div>
+            </div>
+            <div class="product-price">${product.price}
+              ${product.originalPrice ? `<span style="text-decoration: line-through; color: #9ca3af; font-weight: normal; font-size: 14px;">${product.originalPrice}</span>` : ''}
+              ${product.discount ? `<span style="background: #fee2e2; color: #dc2626; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 8px;">${product.discount} OFF</span>` : ''}
+            </div>
+            <div class="product-details">${product.description || ''}</div>
+            ${specificationsHTML}
+            <div class="product-features">
+              <strong>Key Features:</strong> ${product.features ? product.features.join(' • ') : 'N/A'}
+            </div>
+            <div class="retailer-info">
+              <div>
+                <span class="retailer-name">${product.retailer || 'N/A'}</span>
+                <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">
+                  ⭐ ${product.rating || 'N/A'}/5 (${product.reviews || 'N/A'} reviews) • ${product.warranty || 'N/A'}
+                </div>
+              </div>
+              ${branchStockHTML}
+            </div>
+          </div>
+        `;
+    }
+
+    /**
+     * Creates a concise HTML product card for horizontal display.
+     * @param {object} product - The product object.
+     * @returns {string} HTML string for a horizontal product card.
+     */
+    function createHorizontalProductCard(product) {
+        const productUrl = product.productPageUrl || `https://example.com/products/${product.sku}`;
+        const imageUrl = product.imageUrl || `https://via.placeholder.com/120x120?text=Product+Image`;
+
+        return `
+          <a href="${productUrl}" target="_blank" class="product-card-horizontal">
+            <img src="${imageUrl}" alt="${product.name}" onerror="this.onerror=null;this.src='https://via.placeholder.com/120x120?text=Image+Not+Found';">
+            <div class="product-name">${product.name}</div>
+            <div class="product-price">${product.price}</div>
+            <div class="retailer-name">${product.retailer || 'Website Source'}</div>
+          </a>
+        `;
+    }
+
+    /**
+     * Parses the query to extract structured filter criteria, including price ranges.
+     * @param {string} query The user's input query.
+     * @returns {object} An object containing extracted filters.
+     */
+    function parseQueryForFilters(query) {
+        const lowerQuery = query.toLowerCase();
+        const filters = {};
+
+        // Extract Category
+        const categoryKeywords = {
+            'tv': 'TV', 'television': 'TV',
+            'refrigerator': 'Refrigerator', 'fridge': 'Refrigerator',
+            'headphones': 'Headphones', 'earbuds': 'Headphones',
+            'vacuum': 'Vacuum Cleaner', 'cleaner': 'Vacuum Cleaner',
+            'laptop': 'Laptop', 'notebook': 'Laptop',
+            'book': 'Book', 'books': 'Book', 'novel': 'Book'
+        };
+        for (const [keyword, category] of Object.entries(categoryKeywords)) {
+            if (lowerQuery.includes(keyword)) {
+                filters.category = category;
+                break;
+            }
+        }
+
+        // Extract Screen Size
+        const screenSizeRegex = /(\d+)\s*inch/;
+        const screenSizeMatch = lowerQuery.match(screenSizeRegex);
+        if (screenSizeMatch) {
+            filters.screenSize = `${screenSizeMatch[1]} inch`;
+        }
+
+        // Extract Brand
+        const brandKeywords = ['samsung', 'lg', 'bosch', 'sony', 'dyson', 'hp', 'electrolux', 'panasonic'];
+        for (const brand of brandKeywords) {
+            if (lowerQuery.includes(brand)) {
+                filters.brand = brand;
+                break;
+            }
+        }
+
+        // Extract Capacity
+        const capacityRegex = /(\d+)\s*l/;
+        const capacityMatch = lowerQuery.match(capacityRegex);
+        if (capacityMatch) {
+            filters.capacity = `${capacityMatch[1]}L`;
+        }
+
+        // Extract Display Type
+        const displayTypeKeywords = ['qled', 'oled', 'led'];
+        for (const type of displayTypeKeywords) {
+            if (lowerQuery.includes(type)) {
+                filters.displayType = type;
+                break;
+            }
+        }
+
+        // Extract Price Range (e.g., "under $2000", "over $1000", "$500 to $1500")
+        const priceRangeRegex = /(?:under|below)\s*\$?(\d{1,3}(?:,\d{3})*)|\$?(\d{1,3}(?:,\d{3})*)\s*(?:to|-)\s*\$?(\d{1,3}(?:,\d{3})*)|(?:over|above)\s*\$?(\d{1,3}(?:,\d{3})*)/;
+        const priceMatch = lowerQuery.match(priceRangeRegex);
+
+        if (priceMatch) {
+            if (priceMatch[1]) { // "under $X"
+                filters.maxPrice = parseFloat(priceMatch[1].replace(/,/g, ''));
+            } else if (priceMatch[2] && priceMatch[3]) { // "$X to $Y"
+                filters.minPrice = parseFloat(priceMatch[2].replace(/,/g, ''));
+                filters.maxPrice = parseFloat(priceMatch[3].replace(/,/g, ''));
+            } else if (priceMatch[4]) { // "over $X"
+                filters.minPrice = parseFloat(priceMatch[4].replace(/,/g, ''));
+            }
+        }
+
+        return filters;
+    }
+
+
+    /**
+     * Searches the product database for products matching the given query, applying strict filters.
+     * @param {string} query - The user's natural language query.
+     * @returns {Array<object>} An array of matching product objects.
+     */
+    function searchProductsByQuery(query) {
+      const lowerQuery = query.toLowerCase();
+      const filters = parseQueryForFilters(query);
+
+      const matchingProducts = [];
+
+      for (const sku in productDatabase) {
+          const product = productDatabase[sku];
+          const productNameLower = (product.name || '').toLowerCase();
+          const productDescriptionLower = (product.description || '').toLowerCase();
+          const productCategoryLower = (product.category || '').toLowerCase();
+          const productBrandLower = (product.brand || '').toLowerCase();
+          const productScreenSizeLower = (product.screenSize || '').toLowerCase();
+          const productDisplayTypeLower = (product.displayType || '').toLowerCase();
+          const productCapacityLower = (product.capacity || '').toLowerCase();
+          const productNumericPrice = product.numericPrice || 0;
+
+
+          let matchScore = 0;
+          let excludeProduct = false;
+
+          // --- Apply Strict Filters (MUST match if specified in query) ---
+          if (filters.category && productCategoryLower !== filters.category.toLowerCase()) {
+              excludeProduct = true;
+          }
+          if (filters.screenSize && productScreenSizeLower !== filters.screenSize) {
+              excludeProduct = true;
+          }
+          if (filters.brand && productBrandLower !== filters.brand) {
+              excludeProduct = true;
+          }
+          if (filters.capacity && productCapacityLower !== filters.capacity) {
+              excludeProduct = true;
+          }
+          if (filters.displayType && productDisplayTypeLower !== filters.displayType) {
+              excludeProduct = true;
+          }
+          if (filters.minPrice && productNumericPrice < filters.minPrice) {
+              excludeProduct = true;
+          }
+          if (filters.maxPrice && productNumericPrice > filters.maxPrice) {
+              excludeProduct = true;
+          }
+
+          if (excludeProduct) {
+              continue;
+          }
+
+          // --- Apply Scoring for matching attributes and general keywords ---
+          if (filters.category && productCategoryLower === filters.category.toLowerCase()) {
+              matchScore += 20;
+          }
+          if (filters.screenSize && productScreenSizeLower === filters.screenSize) {
+              matchScore += 25;
+          }
+          if (filters.brand && productBrandLower === filters.brand) {
+              matchScore += 30;
+          }
+          if (filters.capacity && productCapacityLower === filters.capacity) {
+              matchScore += 25;
+          }
+          if (filters.displayType && productDisplayTypeLower === filters.displayType) {
+              matchScore += 20;
+          }
+          if (filters.minPrice || filters.maxPrice) {
+              matchScore += 10;
+          }
+
+          const queryWords = lowerQuery.split(' ').filter(word => word.length > 2);
+          queryWords.forEach(word => {
+              if (productNameLower.includes(word)) {
+                  matchScore += 2;
+              } else if (productDescriptionLower.includes(word)) {
+                  matchScore += 1;
+              }
+          });
+
+          if (matchScore > 0) {
+              matchingProducts.push({ product: product, score: matchScore });
+          }
+      }
+
+      return matchingProducts.sort((a, b) => b.score - a.score).map(item => item.product);
+    }
+
+    /**
+     * Generates and displays product results in a horizontal carousel format,
+     * including a technology overview if a category is identified.
+     * @param {Array<object>} products - The list of products to display.
+     * @param {object} filters - The filters extracted from the user's query.
+     */
+    function displayProductResults(products, filters) {
+        let responseHTML = '';
+        const category = filters.category;
+
+        let techOverviewContent = '';
+        if (category === 'TV') {
+            if (filters.displayType === 'oled') {
+                techOverviewContent = `<h4>Understanding OLED TVs:</h4> OLED (Organic Light Emitting Diode) TVs offer unparalleled contrast with true blacks, vibrant colors, and wide viewing angles because each pixel can emit its own light. This allows for incredibly thin designs. Ideal for cinematic viewing. <br> <a href="https://www.rtings.com/tv/learn/oled-vs-led-vs-qled" target="_blank">Learn more about OLED, QLED, and LED TVs here!</a>`;
+            } else if (filters.displayType === 'qled') {
+                techOverviewContent = `<h4>Understanding QLED TVs:</h4> QLED (Quantum Dot LED) TVs use quantum dots to enhance color and brightness on an LED panel. They offer excellent brightness and color volume, especially in well-lit rooms. <br> <a href="https://www.rtings.com/tv/learn/oled-vs-led-vs-qled" target="_blank">Learn more about OLED, QLED, and LED TVs here!</a>`;
+            } else {
+                techOverviewContent = `<h4>Understanding TVs:</h4> Modern TVs come in various technologies like OLED, QLED, and LED. Key features to consider include screen size, resolution (4K, 8K), HDR capabilities, and smart TV platforms. <br> <a href="https://www.rtings.com/tv/learn/oled-vs-led-vs-qled" target="_blank">Learn more about different TV technologies here!</a>`;
+            }
+        } else if (category === 'Refrigerator') {
+            techOverviewContent = `<h4>Understanding Refrigerators:</h4> Modern refrigerators focus on energy efficiency, freshness features (like humidity control), and convenient storage. Consider capacity, door style (bottom mount, French door), and smart features. <br> <a href="https://www.consumerreports.org/appliances/refrigerators/buying-guide/" target="_blank">Find out more about choosing a refrigerator.</a>`;
+        } else if (category === 'Headphones') {
+            techOverviewContent = `<h4>Understanding Headphones:</h4> Headphones offer various listening experiences. Key considerations include noise-cancelling (for immersive audio), comfort (over-ear, in-ear), sound quality, and connectivity (wired, wireless). <br> <a href="https://www.cnet.com/tech/mobile/headphones-buying-guide/" target="_blank">Explore headphone types and features.</a>`;
+        } else if (category === 'Book') {
+            techOverviewContent = `<h4>Understanding Books:</h4> Books come in many genres (fiction, non-fiction, fantasy, science fiction, etc.) and formats (hardcover, paperback, e-book). Consider the author, genre, and reader reviews when choosing your next read! <br> <a href="https://www.goodreads.com/shelf" target="_blank">Explore popular book genres and lists.</a>`;
+        }
+
+        if (techOverviewContent) {
+            responseHTML += `<div class="tech-overview">${techOverviewContent}</div>`;
+        }
+
+        if (products.length > 0) {
+          responseHTML += `<h3>Best options for you:</h3><div class="product-carousel">`;
+          products.forEach(product => {
+              responseHTML += createHorizontalProductCard(product);
+          });
+          responseHTML += `</div>`;
+        }
+
+        addMessage(responseHTML, "bot", true);
+    }
+
+    /**
+     * This function now directly initializes productDatabase from mockData.
+     * It no longer attempts to fetch from a backend.
+     */
+    async function loadMockProductData() {
+        updateStatus('✅ Loaded pre-loaded product data. Ready to assist!', 'ready');
+        // Directly assign the mock data to productDatabase
+        productDatabase = mockProductData;
+        addMessage(`I've loaded ${Object.keys(productDatabase).length} products from our pre-loaded database. How can I help you find something?`, 'bot');
+    }
+
+
+    /**
+     * Handles the user's input and generates a bot response.
+     */
+    window.getResponse = async function() {
+      const query = document.getElementById("userInput").value.trim();
+      if (!query) return;
+
+      addMessage(query, "user");
+      document.getElementById("userInput").value = ""; // Clear input field
+
+      if (Object.keys(productDatabase).length === 0) {
+        addMessage("I don't have any product data loaded yet. Please ensure the mock data is correctly defined.", "bot");
+        return;
+      }
+
+      updateStatus(`🔍 Searching for "${query}"...`, "scanning");
+
+      // Simulate a small delay for search
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const filters = parseQueryForFilters(query);
+      const foundProducts = searchProductsByQuery(query); // This uses the productDatabase (mock data)
+
+      if (foundProducts.length > 0) {
+        displayProductResults(foundProducts.slice(0, 5), filters);
+        updateStatus("✅ Search complete. Ready for your next query.", "ready");
+
+        if (foundProducts.length > 5) {
+          addMessage(`I found ${foundProducts.length} results in total. Showing the top 5. If you want more details, refine your search or ask for a specific product.`, "bot");
+        }
+      } else {
+        addMessage("I couldn't find any products matching your request. Please try rephrasing your query.", "bot");
+        updateStatus("❌ No products found.", "error");
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', (event) => {
+      const userInput = document.getElementById("userInput");
+
+      userInput.addEventListener("keypress", function(e) {
+        if (e.key === "Enter") {
+          getResponse();
+        }
+      });
+
+      // Call the new function to load mock data
+      loadMockProductData();
+    });
+  </script>
+</body>
+</html>
